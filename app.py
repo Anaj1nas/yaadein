@@ -1852,3 +1852,377 @@ elif st.session_state.navigation == "Family Photo Quiz":
             # per-round counter.
 
             st.rerun()
+# ==================================================
+# MEMORY MATCH
+# ==================================================
+
+elif st.session_state.navigation == "Memory Match":
+
+    render_hero(
+        "Memory Match \U0001F3AE♥",
+        "Flip the cards, remember the faces, "
+        "and find every matching pair. 🌷",
+        "A LITTLE MEMORY CHALLENGE \U0001F499"
+    )
+
+    render_tagline(
+        "🌷 A card-matching game built from real family photos, "
+        "not random images."
+    )
+
+    members = get_all_members()
+
+    members_with_photos = [
+        member
+        for member in members
+        if (
+            member.get("photo_path")
+            and Path(
+                member["photo_path"]
+            ).is_file()
+        )
+    ]
+
+    if len(members_with_photos) < 2:
+
+        st.warning(
+            "Add at least two family members "
+            "with photographs to play."
+        )
+
+    else:
+
+        if st.session_state.match_best_attempts is not None:
+
+            st.caption(
+                "\U0001F3C6 Your best game so far: "
+                f"{st.session_state.match_best_attempts} attempts"
+            )
+
+        if st.button(
+            "\U0001F3AE New Game",
+            use_container_width=True
+        ):
+
+            pair_count = min(
+                6,
+                len(members_with_photos)
+            )
+
+            chosen_members = random.sample(
+                members_with_photos,
+                pair_count
+            )
+
+            board = []
+
+            for member in chosen_members:
+
+                for _ in range(2):
+
+                    board.append(
+                        {
+                            "member_id": member["id"],
+                            "name": member["name"],
+                            "photo_path": member["photo_path"],
+                            "card_id": uuid.uuid4().hex,
+                            "matched": False
+                        }
+                    )
+
+            random.shuffle(board)
+
+            st.session_state.match_board = board
+
+            st.session_state.match_selected = []
+
+            st.session_state.match_attempts = 0
+
+            st.session_state.match_message = ""
+
+            st.session_state.match_start_time = time.time()
+
+            st.session_state.match_just_finished = False
+
+            st.rerun()
+
+        board = st.session_state.match_board
+
+        if board:
+
+            matched_pairs = sum(
+                1
+                for card in board
+                if card["matched"]
+            ) // 2
+
+            total_pairs = len(board) // 2
+
+            elapsed_seconds = 0
+
+            if st.session_state.match_start_time:
+
+                elapsed_seconds = int(
+                    time.time() - st.session_state.match_start_time
+                )
+
+            col1, col2, col3, col4 = st.columns(4)
+
+            with col1:
+
+                st.metric(
+                    "Pairs Found",
+                    f"{matched_pairs}/{total_pairs}"
+                )
+
+            with col2:
+
+                st.metric(
+                    "Attempts",
+                    st.session_state.match_attempts
+                )
+
+            with col3:
+
+                st.metric(
+                    "Remaining",
+                    total_pairs - matched_pairs
+                )
+
+            with col4:
+
+                st.metric(
+                    "Time",
+                    f"{elapsed_seconds}s"
+                )
+
+            st.progress(
+                matched_pairs / total_pairs,
+                text=f"{matched_pairs} of {total_pairs} pairs found"
+            )
+
+            st.divider()
+
+            for start in range(
+                0,
+                len(board),
+                4
+            ):
+
+                row_cards = board[
+                    start:start + 4
+                ]
+
+                columns = st.columns(4)
+
+                for column, card in zip(
+                    columns,
+                    row_cards
+                ):
+
+                    with column:
+
+                        with st.container(border=True):
+
+                            revealed = (
+                                card["card_id"]
+                                in st.session_state.match_selected
+                                or card["matched"]
+                            )
+
+                            if revealed:
+
+                                st.image(
+                                    card["photo_path"],
+                                    use_container_width=True
+                                )
+
+                                st.caption(
+                                    card["name"]
+                                )
+
+                                if card["matched"]:
+
+                                    st.success(
+                                        "Matched!"
+                                    )
+
+                            else:
+
+                                st.markdown(
+                                    "<div style='text-align:center; font-size:60px; padding:15px;'>\U0001F499</div>",
+                                    unsafe_allow_html=True
+                                )
+
+                                if st.button(
+                                    "Reveal",
+                                    key=(
+                                        "reveal_"
+                                        + card["card_id"]
+                                    ),
+                                    use_container_width=True
+                                ):
+
+                                    selected = list(
+                                        st.session_state.match_selected
+                                    )
+
+                                    if (
+                                        card["card_id"]
+                                        not in selected
+                                        and len(selected) < 2
+                                    ):
+
+                                        selected.append(
+                                            card["card_id"]
+                                        )
+
+                                        st.session_state.match_selected = (
+                                            selected
+                                        )
+
+                                        if len(selected) == 2:
+
+                                            first = next(
+                                                item
+                                                for item in board
+                                                if item["card_id"]
+                                                == selected[0]
+                                            )
+
+                                            second = next(
+                                                item
+                                                for item in board
+                                                if item["card_id"]
+                                                == selected[1]
+                                            )
+
+                                            st.session_state.match_attempts += 1
+
+                                            if (
+                                                first["member_id"]
+                                                == second["member_id"]
+                                            ):
+
+                                                first["matched"] = True
+
+                                                second["matched"] = True
+
+                                                st.session_state.match_selected = []
+
+                                                st.session_state.match_message = (
+                                                    "correct"
+                                                )
+
+                                            else:
+
+                                                st.session_state.match_message = (
+                                                    "wrong"
+                                                )
+
+                                    st.rerun()
+
+            if (
+                st.session_state.match_message
+                == "wrong"
+            ):
+
+                st.markdown(
+                    "<div style='background: rgba(96,165,250,.12); "
+                    "border: 1px solid rgba(96,165,250,.35); "
+                    "border-radius: 14px; padding: 14px 18px; "
+                    "color: #E0F2FE; font-size: 16px;'>"
+                    "🌷 Not a match yet -- take a moment to "
+                    "remember them, then flip the cards back. ♥"
+                    "</div>",
+                    unsafe_allow_html=True
+                )
+
+                if st.button(
+                    "Hide Cards and Continue",
+                    use_container_width=True
+                ):
+
+                    st.session_state.match_selected = []
+
+                    st.session_state.match_message = ""
+
+                    st.rerun()
+
+            elif (
+                st.session_state.match_message
+                == "correct"
+            ):
+
+                render_shimmer_banner(
+                    "\U0001F389 Beautifully matched! \U0001F499"
+                )
+
+                if st.button(
+                    "Continue",
+                    use_container_width=True
+                ):
+
+                    st.session_state.match_message = ""
+
+                    st.rerun()
+
+            if all(
+                card["matched"]
+                for card in board
+            ):
+
+                st.balloons()
+
+                # --------------------------------------------
+                # STAR RATING
+                # Fewer attempts relative to the number of
+                # pairs earns more stars -- turns a flat
+                # "you won" message into something worth
+                # bragging about.
+                # --------------------------------------------
+
+                if st.session_state.match_attempts <= total_pairs * 1.5:
+                    stars = "★★★"
+                elif st.session_state.match_attempts <= total_pairs * 2.5:
+                    stars = "★★"
+                else:
+                    stars = "★"
+
+                is_new_best = (
+                    st.session_state.match_best_attempts is None
+                    or st.session_state.match_attempts
+                    < st.session_state.match_best_attempts
+                )
+
+                if is_new_best:
+
+                    st.session_state.match_best_attempts = (
+                        st.session_state.match_attempts
+                    )
+
+                render_shimmer_banner(
+                    f"{stars}  Congratulations! You matched every pair "
+                    f"in {st.session_state.match_attempts} attempts "
+                    f"and {elapsed_seconds} seconds. ♥"
+                )
+
+                if is_new_best:
+
+                    st.info(
+                        "\U0001F3C6 That's a new personal best! \U0001F499"
+                    )
+
+                if not st.session_state.match_just_finished:
+
+                    st.session_state.game_history.append(
+                        {
+                            "game": "Memory Match",
+                            "detail": (
+                                f"Finished in {st.session_state.match_attempts} "
+                                f"attempts ({stars})"
+                            ),
+                        }
+                    )
+
+                    st.session_state.match_just_finished = True
