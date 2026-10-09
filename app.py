@@ -377,3 +377,381 @@ def render_tagline(text):
         f'<p class="yaadein-tagline">{text}</p>',
         unsafe_allow_html=True
     )
+# ==================================================
+# DATABASE
+# ==================================================
+
+def get_connection():
+
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+
+    return conn
+
+
+# ==================================================
+# INITIALIZE DATABASE
+# ==================================================
+
+def initialize_database():
+
+    with get_connection() as conn:
+
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS family_members (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                name TEXT NOT NULL,
+                relationship TEXT NOT NULL,
+                photo_path TEXT
+            )
+        """)
+
+        columns = [
+            row[1]
+            for row in conn.execute(
+                "PRAGMA table_info(family_members)"
+            ).fetchall()
+        ]
+
+        if "user_id" not in columns:
+
+            conn.execute(
+                "ALTER TABLE family_members "
+                "ADD COLUMN user_id INTEGER"
+            )
+
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                salt TEXT NOT NULL
+            )
+        """)
+
+        user_count = conn.execute(
+            "SELECT COUNT(*) FROM users"
+        ).fetchone()[0]
+
+        if user_count == 0:
+
+            salt = secrets.token_hex(16)
+
+            password_hash = hashlib.pbkdf2_hmac(
+                "sha256",
+                "Yaadein@123".encode("utf-8"),
+                salt.encode("utf-8"),
+                200000
+            ).hex()
+
+            conn.execute("""
+                INSERT INTO users
+                (username, password_hash, salt)
+                VALUES (?, ?, ?)
+            """, (
+                "admin",
+                password_hash,
+                salt
+            ))
+
+        admin_user = conn.execute(
+            "SELECT id FROM users WHERE username = ?",
+            ("admin",)
+        ).fetchone()
+
+        if admin_user:
+
+            conn.execute(
+                """
+                UPDATE family_members
+                SET user_id = ?
+                WHERE user_id IS NULL
+                """,
+                (admin_user["id"],)
+            )
+
+
+initialize_database()
+
+
+# ==================================================
+# ACCOUNT FUNCTIONS
+# ==================================================
+
+def verify_login(username, password):
+
+    with get_connection() as conn:
+
+        user = conn.execute(
+            """
+            SELECT username, password_hash, salt
+            FROM users
+            WHERE username = ?
+            """,
+            (username.strip(),)
+        ).fetchone()
+
+    if user is None:
+        return False
+
+    entered_hash = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        user["salt"].encode("utf-8"),
+        200000
+    ).hex()
+
+    return hmac.compare_digest(
+        entered_hash,
+        user["password_hash"]
+    )
+
+
+def create_account(username, password):
+
+    username = username.strip()
+
+    if len(username) < 3:
+
+        return (
+            False,
+            "Username must contain at least 3 characters."
+        )
+
+    if len(username) > 30:
+
+        return (
+            False,
+            "Username cannot exceed 30 characters."
+        )
+
+    if not username.replace("_", "").isalnum():
+
+        return (
+            False,
+            "Use only letters, numbers, and underscores."
+        )
+
+    if len(password) < 4:
+
+        return (
+            False,
+            "Password must contain at least 4 characters."
+        )
+
+    salt = secrets.token_hex(16)
+
+    password_hash = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt.encode("utf-8"),
+        200000
+    ).hex()
+
+    try:
+
+        with get_connection() as conn:
+
+            conn.execute(
+                """
+                INSERT INTO users
+                (username, password_hash, salt)
+                VALUES (?, ?, ?)
+                """,
+                (
+                    username,
+                    password_hash,
+                    salt
+                )
+            )
+
+        return (
+            True,
+            "Account created successfully!"
+        )
+
+    except sqlite3.IntegrityError:
+
+        return (
+            False,
+            "This username already exists."
+        )
+
+
+# ==================================================
+# USER FUNCTIONS
+# ==================================================
+
+def get_current_user_id():
+
+    username = st.session_state.get(
+        "current_username"
+    )
+
+    if not username:
+        return None
+
+    with get_connection() as conn:
+
+        user = conn.execute(
+            """
+            SELECT id
+            FROM users
+            WHERE username = ?
+            """,
+            (username,)
+        ).fetchone()
+
+    if user:
+        return user["id"]
+
+    return None
+
+
+# ==================================================
+# FAMILY MEMBER FUNCTIONS
+# ==================================================
+
+def get_all_members():
+
+    user_id = get_current_user_id()
+
+    if user_id is None:
+        return []
+
+    with get_connection() as conn:
+
+        rows = conn.execute(
+            """
+            SELECT id, name, relationship, photo_path
+            FROM family_members
+            WHERE user_id = ?
+            ORDER BY name COLLATE NOCASE
+            """,
+            (user_id,)
+        ).fetchall()
+
+    return [
+        dict(row)
+        for row in rows
+    ]
+
+
+def add_family_member(
+    name,
+    relationship,
+    uploaded_photo
+):
+
+    user_id = get_current_user_id()
+
+    if user_id is None:
+        return False
+
+    extension = Path(
+        uploaded_photo.name
+    ).suffix.lower()
+
+    if extension not in [
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp"
+    ]:
+        extension = ".jpg"
+
+    filename = (
+        f"{uuid.uuid4().hex}"
+        f"{extension}"
+    )
+
+    photo_path = PHOTO_DIR / filename
+
+    with open(
+        photo_path,
+        "wb"
+    ) as file:
+
+        file.write(
+            uploaded_photo.getbuffer()
+        )
+
+    with get_connection() as conn:
+
+        conn.execute(
+            """
+            INSERT INTO family_members
+            (
+                user_id,
+                name,
+                relationship,
+                photo_path
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                user_id,
+                name.strip(),
+                relationship,
+                str(photo_path)
+            )
+        )
+
+    return True
+
+
+def delete_family_member(member_id):
+
+    user_id = get_current_user_id()
+
+    if user_id is None:
+        return
+
+    with get_connection() as conn:
+
+        member = conn.execute(
+            """
+            SELECT photo_path
+            FROM family_members
+            WHERE id = ?
+            AND user_id = ?
+            """,
+            (
+                member_id,
+                user_id
+            )
+        ).fetchone()
+
+        conn.execute(
+            """
+            DELETE FROM family_members
+            WHERE id = ?
+            AND user_id = ?
+            """,
+            (
+                member_id,
+                user_id
+            )
+        )
+
+    if member and member["photo_path"]:
+
+        photo_path = Path(
+            member["photo_path"]
+        )
+
+        try:
+
+            photo_path.resolve().relative_to(
+                PHOTO_DIR.resolve()
+            )
+
+            if photo_path.is_file():
+                photo_path.unlink()
+
+        except (
+            ValueError,
+            OSError
+        ):
+            pass
