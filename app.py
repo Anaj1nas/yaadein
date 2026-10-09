@@ -1004,3 +1004,295 @@ if not st.session_state.authenticated:
                                 )
 
     st.stop()
+# ==================================================
+# SIDEBAR
+# ==================================================
+
+with st.sidebar:
+
+    st.title("♥ Yaadein")
+
+    st.caption("YOUR FAMILY • YOUR MEMORIES • YOUR COMPANION 🌷")
+
+    st.divider()
+
+    st.caption(
+        "\U0001F510 Logged in as: "
+        + str(st.session_state.get("current_username", "admin"))
+    )
+
+    st.divider()
+
+    # Handle navigation redirect before the radio widget renders
+    if st.session_state.get("requested_page"):
+        st.session_state.main_navigation_radio = st.session_state.requested_page
+        st.session_state.navigation = st.session_state.requested_page
+        st.session_state.requested_page = None
+
+    selected_page = st.radio(
+        "Navigation",
+        PAGES,
+        key="main_navigation_radio"
+    )
+
+    st.session_state.navigation = selected_page
+
+    st.divider()
+
+    if st.button("\U0001F6AA Logout", use_container_width=True):
+
+        st.session_state.authenticated = False
+        st.session_state.current_username = None
+        st.session_state.navigation = "Home"
+        st.session_state.requested_page = None
+
+        if "main_navigation_radio" in st.session_state:
+            st.session_state.main_navigation_radio = "Home"
+
+        st.session_state.quiz_target = None
+        st.session_state.quiz_options = []
+        st.session_state.quiz_answered = False
+        st.session_state.quiz_score = 0
+        st.session_state.quiz_questions = 0
+        st.session_state.quiz_result = None
+        st.session_state.quiz_streak = 0
+        st.session_state.quiz_best_streak = 0
+
+        st.session_state.match_board = []
+        st.session_state.match_selected = []
+        st.session_state.match_attempts = 0
+        st.session_state.match_message = ""
+        st.session_state.match_start_time = None
+        st.session_state.match_best_attempts = None
+        st.session_state.match_just_finished = False
+
+        st.session_state.game_history = []
+
+        st.session_state.delete_confirm_id = None
+
+        st.session_state.walking_reminder_time = None
+        st.session_state.walking_duration = 20
+        st.session_state.walking_reminder_set = False
+
+        st.rerun()
+
+
+# ==================================================
+# HOME
+# ==================================================
+
+if st.session_state.navigation == "Home":
+
+    render_hero(
+        "Welcome to Yaadein ♥♥",
+        "A beautiful home for the people, photographs, "
+        "and moments that make your family unique. \U0001F338",
+        "YOUR FAMILY • YOUR MEMORIES • YOUR COMPANION \U0001F4F8"
+    )
+
+    render_tagline(
+        "♥ Instead of asking an elder to remember random pictures, "
+        "Yaadein turns their own family memories into personalized practice. \U0001F338"
+    )
+
+    st.write(
+        "A special place to preserve family photographs, "
+        "celebrate relationships, and revisit beautiful memories. ♥"
+    )
+
+    st.divider()
+
+    st.markdown(
+        "### \U00002728 Explore Yaadein"
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        with st.container(border=True):
+
+            st.markdown(
+                "## \U0001F4F8 Family Photos \U0001F338"
+            )
+
+            st.write(
+                "Add, view, search, and manage family photographs. ♥"
+            )
+
+            if st.button(
+                "Open Family Photos",
+                key="home_photos",
+                use_container_width=True
+            ):
+
+                go_to_page(
+                    "Family Photos"
+                )
+
+    with col2:
+
+        with st.container(border=True):
+
+            st.markdown(
+                "## \U0001F4F8 Family Photo Quiz ★"
+            )
+
+            st.write(
+                "\"Who is this?\" -- with their own family photos, "
+                "and gentle feedback that never says Wrong. ♥"
+            )
+
+            if st.button(
+                "Play Photo Quiz",
+                key="home_quiz",
+                use_container_width=True
+            ):
+
+                go_to_page(
+                    "Family Photo Quiz"
+                )
+
+    col3, col4 = st.columns(2)
+
+    with col3:
+
+        with st.container(border=True):
+
+            st.markdown(
+                "## ★ Memory Match ♥"
+            )
+
+            st.write(
+                "A card-matching game built from real family faces, "
+                "for gentle daily memory practice. \U0001F338"
+            )
+
+            if st.button(
+                "Play Memory Match",
+                key="home_match",
+                use_container_width=True
+            ):
+
+                go_to_page(
+                    "Memory Match"
+                )
+
+    with col4:
+
+        with st.container(border=True):
+
+            st.markdown(
+                "## ▣ Family Dashboard \U0001F338"
+            )
+
+            st.write(
+                "Progress, streaks, and the faces that need "
+                "a little more practice. ♥"
+            )
+
+            if st.button(
+                "Open Dashboard",
+                key="home_dashboard",
+                use_container_width=True
+            ):
+
+                go_to_page(
+                    "Family Dashboard"
+                )
+
+    st.divider()
+
+    col5, col6 = st.columns(2)
+
+    with col5:
+
+        with st.container(border=True):
+
+            st.markdown(
+                "## \U0001F6B6 Walking Reminder \U0001F338"
+            )
+
+            st.write(
+                "Set a daily reminder for a healthy walking break. ♥"
+            )
+
+            if st.button(
+                "Set Walking Reminder",
+                key="home_walking",
+                use_container_width=True
+            ):
+
+                go_to_page(
+                    "Walking Reminder"
+                )
+
+    with col6:
+
+        with st.container(border=True):
+
+            st.markdown(
+                "## ♥ Healthy Break \U0001F338"
+            )
+
+            st.write(
+                "Take a short walk and refresh your mind and body. ♥"
+            )
+
+    # ----------------------------------------------------
+    # LIVE HIGHLIGHTS STRIP
+    # A quick, personal snapshot of how the games have gone
+    # so far this session -- keeps Home feeling alive instead
+    # of static, and gives first-time visitors (judges!) an
+    # instant sense that the app is actually being used.
+    # ----------------------------------------------------
+
+    st.divider()
+
+    if st.session_state.game_history:
+
+        st.markdown("### 🌷 This Session's Highlights")
+
+        highlight_col1, highlight_col2, highlight_col3 = st.columns(3)
+
+        with highlight_col1:
+
+            st.metric(
+                "★ Quiz Best Streak",
+                f"{st.session_state.quiz_best_streak} in a row"
+            )
+
+        with highlight_col2:
+
+            if st.session_state.match_best_attempts is not None:
+
+                st.metric(
+                    "★ Match Best Score",
+                    f"{st.session_state.match_best_attempts} attempts"
+                )
+
+            else:
+
+                st.metric(
+                    "★ Match Best Score",
+                    "Not played yet"
+                )
+
+        with highlight_col3:
+
+            st.metric(
+                "\U0001F4C8 Games Played",
+                len(st.session_state.game_history)
+            )
+
+        st.caption(
+            "See the full breakdown any time on the Family Dashboard."
+        )
+
+    else:
+
+        st.info(
+            "♥ Every photograph holds a story. \U0001F338 "
+            "Play the Photo Quiz or Memory Match to start "
+            "building this family's highlight reel. ♥"
+        )
