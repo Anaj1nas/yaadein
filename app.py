@@ -1296,3 +1296,246 @@ if st.session_state.navigation == "Home":
             "Play the Photo Quiz or Memory Match to start "
             "building this family's highlight reel. ♥"
         )
+# ==================================================
+# FAMILY PHOTOS
+# ==================================================
+
+elif st.session_state.navigation == "Family Photos":
+
+    render_hero(
+        "Family Photos \U0001F4F8\U0001F49B",
+        "Keep your favourite faces and family stories "
+        "together in one beautiful collection. \U0001F338",
+        "MEMORY GALLERY \U0001F499"
+    )
+
+    with st.expander(
+        "➕ Add a Family Member",
+        expanded=True
+    ):
+
+        with st.form(
+            "add_member_form",
+            clear_on_submit=True
+        ):
+
+            member_name = st.text_input(
+                "Full Name"
+            )
+
+            relationship = st.selectbox(
+                "Relationship",
+                [
+                    "Father",
+                    "Mother",
+                    "Brother",
+                    "Sister",
+                    "Grandfather",
+                    "Grandmother",
+                    "Uncle",
+                    "Aunt",
+                    "Cousin",
+                    "Spouse",
+                    "Child",
+                    "Other"
+                ]
+            )
+
+            uploaded_photo = st.file_uploader(
+                "Upload Photograph",
+                type=[
+                    "jpg",
+                    "jpeg",
+                    "png",
+                    "webp"
+                ]
+            )
+
+            add_button = st.form_submit_button(
+                "Save Family Member",
+                use_container_width=True
+            )
+
+            if add_button:
+
+                if not member_name.strip():
+
+                    st.error(
+                        "Please enter the family member's name."
+                    )
+
+                elif uploaded_photo is None:
+
+                    st.error(
+                        "Please upload a photograph."
+                    )
+
+                else:
+
+                    add_family_member(
+                        member_name,
+                        relationship,
+                        uploaded_photo
+                    )
+
+                    st.success(
+                        f"{member_name.strip()} has been added!"
+                    )
+
+                    st.rerun()
+
+    st.divider()
+
+    st.subheader(
+        "Your Family Collection"
+    )
+
+    search_text = st.text_input(
+        "\U0001F50E Search by name or relationship",
+        placeholder="Type a name or relationship..."
+    )
+
+    members = get_all_members()
+
+    if search_text.strip():
+
+        query = search_text.strip().casefold()
+
+        members = [
+            member
+            for member in members
+            if (
+                query in member["name"].casefold()
+                or query in member["relationship"].casefold()
+            )
+        ]
+
+    if not members:
+
+        st.info(
+            "No family members found."
+        )
+
+    else:
+
+        st.caption(
+            f"{len(members)} family member(s) displayed."
+        )
+
+        for start in range(
+            0,
+            len(members),
+            3
+        ):
+
+            row_members = members[
+                start:start + 3
+            ]
+
+            columns = st.columns(3)
+
+            for column, member in zip(
+                columns,
+                row_members
+            ):
+
+                with column:
+
+                    with st.container(border=True):
+
+                        photo_path = member.get(
+                            "photo_path"
+                        )
+
+                        if (
+                            photo_path
+                            and Path(
+                                photo_path
+                            ).is_file()
+                        ):
+
+                            st.image(
+                                photo_path,
+                                use_container_width=True
+                            )
+
+                        else:
+
+                            st.markdown(
+                                "<div style='text-align:center; font-size:70px;'>\U0001F464</div>",
+                                unsafe_allow_html=True
+                            )
+
+                        st.markdown(
+                            f"### {member['name']}"
+                        )
+
+                        st.write(
+                            "**Relationship:** "
+                            + str(
+                                member["relationship"]
+                            )
+                        )
+
+                        if st.button(
+                            "Delete Member",
+                            key=f"delete_{member['id']}",
+                            use_container_width=True
+                        ):
+
+                            st.session_state.delete_confirm_id = (
+                                member["id"]
+                            )
+
+                            st.rerun()
+
+    delete_id = st.session_state.get(
+        "delete_confirm_id"
+    )
+
+    if delete_id is not None:
+
+        member_to_delete = next(
+            (
+                member
+                for member in get_all_members()
+                if member["id"] == delete_id
+            ),
+            None
+        )
+
+        if member_to_delete:
+
+            st.warning(
+                f"Delete {member_to_delete['name']} "
+                "and their stored photograph?"
+            )
+
+            confirm_col, cancel_col = st.columns(2)
+
+            with confirm_col:
+
+                if st.button(
+                    "Yes, Delete",
+                    type="primary",
+                    key="confirm_delete"
+                ):
+
+                    delete_family_member(
+                        delete_id
+                    )
+
+                    st.session_state.delete_confirm_id = None
+
+                    st.rerun()
+
+            with cancel_col:
+
+                if st.button(
+                    "Cancel",
+                    key="cancel_delete"
+                ):
+
+                    st.session_state.delete_confirm_id = None
+
+                    st.rerun()
