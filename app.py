@@ -1539,3 +1539,316 @@ elif st.session_state.navigation == "Family Photos":
                     st.session_state.delete_confirm_id = None
 
                     st.rerun()
+# ==================================================
+# FAMILY PHOTO QUIZ
+# ==================================================
+
+elif st.session_state.navigation == "Family Photo Quiz":
+
+    render_hero(
+        "📷 Family Photo Quiz ★",
+        "\"Who is this?\" -- turned into a warm, gentle guessing game "
+        "with your own family photos. 🌷",
+        "PLAY • REMEMBER • CELEBRATE ♥"
+    )
+
+    render_tagline(
+        "\U0001F499 Gentle feedback, always -- we say "
+        "\"Let's try again\", never \"Wrong!\""
+    )
+
+    members = get_all_members()
+
+    if len(members) < 2:
+
+        st.warning(
+            "Add at least two family members to play the quiz."
+        )
+
+    else:
+
+        # --------------------------------------------
+        # LIVE STATS STRIP
+        # Accuracy and streak turn a simple right/wrong
+        # quiz into something that feels like it is
+        # actually tracking your progress.
+        # --------------------------------------------
+
+        accuracy = 0
+
+        if st.session_state.quiz_questions > 0:
+
+            accuracy = round(
+                (
+                    st.session_state.quiz_score
+                    / st.session_state.quiz_questions
+                )
+                * 100
+            )
+
+        score_col, question_col, streak_col, accuracy_col = st.columns(4)
+
+        with score_col:
+
+            st.metric(
+                "Correct Answers",
+                st.session_state.quiz_score
+            )
+
+        with question_col:
+
+            st.metric(
+                "Questions Answered",
+                st.session_state.quiz_questions
+            )
+
+        with streak_col:
+
+            st.metric(
+                "\U0001F525 Current Streak",
+                st.session_state.quiz_streak,
+                help="Best streak this session: "
+                     f"{st.session_state.quiz_best_streak}"
+            )
+
+        with accuracy_col:
+
+            st.metric(
+                "★ Accuracy",
+                f"{accuracy}%"
+            )
+
+        if st.session_state.quiz_questions > 0:
+
+            st.progress(
+                accuracy / 100,
+                text=f"{accuracy}% correct so far"
+            )
+
+        st.divider()
+
+        if st.session_state.quiz_target is None:
+
+            if st.button(
+                "▶️ Start Quiz",
+                use_container_width=True
+            ):
+
+                target = random.choice(
+                    members
+                )
+
+                other_members = [
+                    member
+                    for member in members
+                    if member["id"] != target["id"]
+                ]
+
+                wrong_options = random.sample(
+                    other_members,
+                    min(
+                        3,
+                        len(other_members)
+                    )
+                )
+
+                options = [
+                    target
+                ] + wrong_options
+
+                random.shuffle(
+                    options
+                )
+
+                st.session_state.quiz_target = target
+                st.session_state.quiz_options = options
+                st.session_state.quiz_answered = False
+                st.session_state.quiz_result = None
+
+                st.rerun()
+
+        else:
+
+            target = st.session_state.quiz_target
+
+            photo_path = target.get(
+                "photo_path"
+            )
+
+            if (
+                photo_path
+                and Path(
+                    photo_path
+                ).is_file()
+            ):
+
+                st.image(
+                    photo_path,
+                    caption="Who is this family member?",
+                    width=350
+                )
+
+            else:
+
+                st.warning(
+                    "This member's photograph is unavailable."
+                )
+
+            option_names = [
+                member["name"]
+                for member
+                in st.session_state.quiz_options
+            ]
+
+            # Large, touch-friendly name buttons.
+            # Selecting a name immediately checks the answer;
+            # there is no radio button and no extra "Check Answer" step.
+            if not st.session_state.quiz_answered:
+
+                st.markdown(
+                    "<div style='text-align:center; color:#DDD6FE; "
+                    "font-size:15px; font-weight:700; margin:8px 0 10px 0;'>"
+                    "Choose the family member:</div>",
+                    unsafe_allow_html=True
+                )
+
+                option_columns = st.columns(len(option_names))
+
+                for option_index, option_name in enumerate(option_names):
+
+                    with option_columns[option_index]:
+
+                        if st.button(
+                            option_name,
+                            key=f"quiz_option_{st.session_state.quiz_target['id']}_{option_index}",
+                            use_container_width=True
+                        ):
+
+                            st.session_state.quiz_answered = True
+
+                            st.session_state.quiz_questions += 1
+
+                            if option_name == target["name"]:
+
+                                st.session_state.quiz_score += 1
+
+                                st.session_state.quiz_streak += 1
+
+                                if (
+                                    st.session_state.quiz_streak
+                                    > st.session_state.quiz_best_streak
+                                ):
+
+                                    st.session_state.quiz_best_streak = (
+                                        st.session_state.quiz_streak
+                                    )
+
+                                st.session_state.quiz_result = (
+                                    "correct"
+                                )
+
+                            else:
+
+                                st.session_state.quiz_streak = 0
+
+                                st.session_state.quiz_result = (
+                                    "incorrect"
+                                )
+
+                            st.session_state.game_history.append(
+                                {
+                                    "game": "Family Photo Quiz",
+                                    "detail": (
+                                        f"Guessed {target['name']} "
+                                        + (
+                                            "correctly"
+                                            if st.session_state.quiz_result
+                                            == "correct"
+                                            else "incorrectly"
+                                        )
+                                    ),
+                                }
+                            )
+
+                            st.rerun()
+
+            else:
+
+                if (
+                    st.session_state.quiz_result
+                    == "correct"
+                ):
+
+                    correct_messages = [
+                        "\U0001F389 Correct! You know this face so well. ♥",
+                        "🌷 Spot on -- that's exactly right!",
+                        "✨ Beautifully remembered!",
+                        "\U0001F3C6 Yes! A memory held close. \U0001F499",
+                    ]
+
+                    render_shimmer_banner(
+                        random.choice(correct_messages)
+                    )
+
+                    st.balloons()
+
+                    if st.session_state.quiz_streak >= 3:
+
+                        st.toast(
+                            f"\U0001F525 {st.session_state.quiz_streak} "
+                            "in a row! Keep going!"
+                        )
+
+                else:
+
+                    # --------------------------------------------
+                    # GENTLE FEEDBACK
+                    # The pitch promises we never say "Wrong!" --
+                    # a soft, encouraging nudge instead of a harsh
+                    # red error, so the moment stays motivating
+                    # rather than discouraging.
+                    # --------------------------------------------
+
+                    st.markdown(
+                        "<div style='background: rgba(96,165,250,.12); "
+                        "border: 1px solid rgba(96,165,250,.35); "
+                        "border-radius: 14px; padding: 14px 18px; "
+                        "color: #E0F2FE; font-size: 16px;'>"
+                        f"🌷 Let's try again -- this is "
+                        f"<b>{target['name']}</b>. Every attempt helps "
+                        "the memory grow a little stronger. ♥"
+                        "</div>",
+                        unsafe_allow_html=True
+                    )
+
+                if st.button(
+                    "Next Question",
+                    use_container_width=True
+                ):
+
+                    st.session_state.quiz_target = None
+
+                    st.session_state.quiz_options = []
+
+                    st.session_state.quiz_answered = False
+
+                    st.session_state.quiz_result = None
+
+                    st.rerun()
+
+        if st.button(
+            "\U0001F504 Reset Quiz Score"
+        ):
+
+            st.session_state.quiz_target = None
+            st.session_state.quiz_options = []
+            st.session_state.quiz_answered = False
+            st.session_state.quiz_score = 0
+            st.session_state.quiz_questions = 0
+            st.session_state.quiz_result = None
+            st.session_state.quiz_streak = 0
+            # quiz_best_streak is intentionally kept --
+            # it is a lifetime personal best, not a
+            # per-round counter.
+
+            st.rerun()
