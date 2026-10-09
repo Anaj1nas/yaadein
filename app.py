@@ -2305,3 +2305,269 @@ elif st.session_state.navigation == "Walking Reminder":
             st.session_state.walking_reminder_time = None
 
             st.rerun()
+# ==================================================
+# FAMILY DASHBOARD
+# ==================================================
+
+elif st.session_state.navigation == "Family Dashboard":
+
+    render_hero(
+        "Family Dashboard \U0001F4CA\U0001F49B",
+        "Progress, streaks, and the faces that need "
+        "a little more practice. \U0001F338",
+        "YOUR FAMILY AT A GLANCE \U0001F499"
+    )
+
+    members = get_all_members()
+
+    total_members = len(members)
+
+    total_photos = sum(
+        1
+        for member in members
+        if (
+            member.get("photo_path")
+            and Path(
+                member["photo_path"]
+            ).is_file()
+        )
+    )
+
+    relationship_count = {}
+
+    for member in members:
+
+        relationship = member["relationship"]
+
+        relationship_count[relationship] = (
+            relationship_count.get(
+                relationship,
+                0
+            ) + 1
+        )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        st.metric(
+            "\U0001F468‍\U0001F469‍‍\U0001F467‍\U0001F466 Family Members",
+            total_members
+        )
+
+    with col2:
+
+        st.metric(
+            "\U0001F4F8 Available Photos",
+            total_photos
+        )
+
+    with col3:
+
+        st.metric(
+            "\U0001F499 Relationships",
+            len(relationship_count)
+        )
+
+    st.divider()
+
+    st.subheader(
+        "\U0001F338 Relationship Summary"
+    )
+
+    if not relationship_count:
+
+        st.info(
+            "No family members have been added yet."
+        )
+
+    else:
+
+        sorted_relationships = sorted(
+            relationship_count.items(),
+            key=lambda item: item[1],
+            reverse=True
+        )
+
+        for relationship, count in sorted_relationships:
+
+            col1, col2 = st.columns(
+                [2, 3]
+            )
+
+            with col1:
+
+                st.write(
+                    f"**{relationship}**"
+                )
+
+            with col2:
+
+                st.progress(
+                    count / total_members
+                )
+
+                st.caption(
+                    f"{count} member(s)"
+                )
+
+    st.divider()
+
+    # ----------------------------------------------------
+    # GAME ACTIVITY
+    # Pulls together everything that happened in the Photo
+    # Quiz and Memory Match into one place, so the dashboard
+    # tells the whole story of the app, not just the photo
+    # collection.
+    # ----------------------------------------------------
+
+    st.subheader(
+        "\U0001F3AE Game Activity \U0001F49B"
+    )
+
+    quiz_accuracy = 0
+
+    if st.session_state.quiz_questions > 0:
+
+        quiz_accuracy = round(
+            (
+                st.session_state.quiz_score
+                / st.session_state.quiz_questions
+            )
+            * 100
+        )
+
+    activity_col1, activity_col2, activity_col3, activity_col4 = st.columns(4)
+
+    with activity_col1:
+
+        st.metric(
+            "Quiz Questions Answered",
+            st.session_state.quiz_questions
+        )
+
+    with activity_col2:
+
+        st.metric(
+            "Quiz Accuracy",
+            f"{quiz_accuracy}%"
+        )
+
+    with activity_col3:
+
+        st.metric(
+            "\U0001F525 Best Quiz Streak",
+            st.session_state.quiz_best_streak
+        )
+
+    with activity_col4:
+
+        if st.session_state.match_best_attempts is not None:
+
+            st.metric(
+                "\U0001F3AE Best Match Score",
+                f"{st.session_state.match_best_attempts} attempts"
+            )
+
+        else:
+
+            st.metric(
+                "\U0001F3AE Best Match Score",
+                "Not played yet"
+            )
+
+    if st.session_state.game_history:
+
+        st.markdown("**Recent Activity**")
+
+        recent_events = list(
+            reversed(st.session_state.game_history)
+        )[:5]
+
+        for event in recent_events:
+
+            icon = (
+                "\U0001F3AF"
+                if event["game"] == "Family Photo Quiz"
+                else "\U0001F3AE"
+            )
+
+            st.write(
+                f"{icon} **{event['game']}** — {event['detail']}"
+            )
+
+    else:
+
+        st.info(
+            "No games played yet. Visit the Family Photo Quiz "
+            "or Memory Match page to get started."
+        )
+
+    st.divider()
+
+    st.subheader(
+        "\U0001F499 Family Members"
+    )
+
+    if not members:
+
+        st.info(
+            "Your family collection is currently empty."
+        )
+
+    else:
+
+        for member in members:
+
+            col1, col2, col3 = st.columns(
+                [1, 3, 2]
+            )
+
+            with col1:
+
+                photo_path = member.get(
+                    "photo_path"
+                )
+
+                if (
+                    photo_path
+                    and Path(
+                        photo_path
+                    ).is_file()
+                ):
+
+                    st.image(
+                        photo_path,
+                        width=70
+                    )
+
+                else:
+
+                    st.write(
+                        "\U0001F464"
+                    )
+
+            with col2:
+
+                st.write(
+                    f"**{member['name']}**"
+                )
+
+            with col3:
+
+                st.write(
+                    member["relationship"]
+                )
+
+            st.divider()
+
+
+# ==================================================
+# FOOTER
+# ==================================================
+
+st.sidebar.divider()
+
+st.sidebar.caption(
+    "\U0001F499 Your Family. Your Memories. Your Companion. \U0001F338"
+)
