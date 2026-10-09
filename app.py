@@ -2226,3 +2226,82 @@ elif st.session_state.navigation == "Memory Match":
                     )
 
                     st.session_state.match_just_finished = True
+# ==================================================
+# WALKING REMINDER
+# ==================================================
+
+elif st.session_state.navigation == "Walking Reminder":
+
+    render_hero(
+        "Walking Reminder \U0001F6B6\U0001F49B",
+        "Set a simple daily reminder for a healthy walking break. \U0001F338",
+        "A LITTLE WALK, EVERY DAY \U0001F499"
+    )
+
+    st.subheader(
+        "\U0001F6B6 Daily Walking Reminder"
+    )
+
+    reminder_time = st.time_input(
+        "Choose your walking reminder time",
+        key="walking_reminder_time_input"
+    )
+
+    duration = st.number_input(
+        "Walking duration (minutes)",
+        min_value=5,
+        max_value=120,
+        value=st.session_state.walking_duration,
+        step=5,
+        key="walking_duration_input"
+    )
+
+    if st.button(
+        "\U0001F514 Set Walking Reminder",
+        use_container_width=True
+    ):
+
+        st.session_state.walking_reminder_time = (
+            reminder_time
+        )
+
+        st.session_state.walking_duration = (
+            int(duration)
+        )
+
+        st.session_state.walking_reminder_set = True
+
+        st.success(
+            f"Walking reminder set for "
+            f"{reminder_time.strftime('%I:%M %p')} "
+            f"for {int(duration)} minutes. \U0001F6B6"
+        )
+
+    if st.session_state.walking_reminder_set:
+
+        saved_time = (
+            st.session_state.walking_reminder_time
+        )
+
+        saved_duration = (
+            st.session_state.walking_duration
+        )
+
+        st.divider()
+
+        st.success(
+            f"\U0001F499 Reminder active: "
+            f"{saved_time.strftime('%I:%M %p')} "
+            f"for {saved_duration} minutes."
+        )
+
+        if st.button(
+            "Turn Off Walking Reminder",
+            use_container_width=True
+        ):
+
+            st.session_state.walking_reminder_set = False
+
+            st.session_state.walking_reminder_time = None
+
+            st.rerun()
