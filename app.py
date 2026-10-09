@@ -755,3 +755,252 @@ def delete_family_member(member_id):
             OSError
         ):
             pass
+# ==================================================
+# SESSION STATE
+# ==================================================
+
+DEFAULT_STATE = {
+
+    "authenticated": False,
+
+    "current_username": None,
+
+    "navigation": "Home",
+
+    "requested_page": None,
+
+    # Quiz
+    "quiz_target": None,
+    "quiz_options": [],
+    "quiz_answered": False,
+    "quiz_score": 0,
+    "quiz_questions": 0,
+    "quiz_result": None,
+    "quiz_streak": 0,
+    "quiz_best_streak": 0,
+
+    # Memory Match
+    "match_board": [],
+    "match_selected": [],
+    "match_attempts": 0,
+    "match_message": "",
+    "match_start_time": None,
+    "match_best_attempts": None,
+    "match_just_finished": False,
+
+    # Shared game activity feed (powers the Family Dashboard)
+    "game_history": [],
+
+    # Delete
+    "delete_confirm_id": None,
+
+    # Walking Reminder
+    "walking_reminder_time": None,
+    "walking_duration": 20,
+    "walking_reminder_set": False,
+}
+
+
+for key, value in DEFAULT_STATE.items():
+
+    if key not in st.session_state:
+
+        st.session_state[key] = value
+
+
+PAGES = [
+    "Home",
+    "Family Photos",
+    "Family Photo Quiz",
+    "Memory Match",
+    "Walking Reminder",
+    "Family Dashboard",
+]
+
+
+def go_to_page(page_name):
+
+    st.session_state.requested_page = page_name
+
+    st.rerun()
+
+
+# ==================================================
+# LOGIN PAGE
+# ==================================================
+
+if not st.session_state.authenticated:
+
+    st.markdown(
+        "<h1 style='text-align: center; font-size: 48px;'>♥ Yaadein ♥</h1>",
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        "<p style='text-align: center; font-size: 20px; color: #E2E8F0;'>"
+        "Your Family. Your Memories. Your Companion. 🌷</p>",
+        unsafe_allow_html=True
+    )
+
+    render_tagline(
+        "\U0001F4F8 Instead of asking an elder to remember random pictures, "
+        "Yaadein turns their own family memories into personalized practice."
+    )
+
+    st.divider()
+
+    _, account_column, _ = st.columns(
+        [1, 1.2, 1]
+    )
+
+    with account_column:
+
+        with st.container(border=True):
+
+            login_tab, signup_tab = st.tabs(
+                [
+                    "♥ Login",
+                    "🌷 Create Account"
+                ]
+            )
+
+            # ------------------------------
+            # LOGIN
+            # ------------------------------
+
+            with login_tab:
+
+                st.subheader(
+                    "Welcome Back! 🌷"
+                )
+
+                with st.form(
+                    "login_form"
+                ):
+
+                    username_input = st.text_input(
+                        "Username",
+                        placeholder="Enter your username"
+                    )
+
+                    password_input = st.text_input(
+                        "Password",
+                        type="password",
+                        placeholder="Enter your password"
+                    )
+
+                    login_button = st.form_submit_button(
+                        "Login",
+                        use_container_width=True
+                    )
+
+                    if login_button:
+
+                        if verify_login(
+                            username_input,
+                            password_input
+                        ):
+
+                            st.session_state.authenticated = True
+
+                            st.session_state.current_username = (
+                                username_input.strip()
+                            )
+
+                            st.session_state.navigation = "Home"
+
+                            st.session_state.requested_page = None
+
+                            st.rerun()
+
+                        else:
+
+                            st.error(
+                                "Incorrect username or password."
+                            )
+
+            # ------------------------------
+            # SIGNUP
+            # ------------------------------
+
+            with signup_tab:
+
+                st.subheader(
+                    "Join Yaadein ♥"
+                )
+
+                st.write(
+                    "Create an account to access "
+                    "your family memories. 🌷"
+                )
+
+                with st.form(
+                    "signup_form"
+                ):
+
+                    new_username = st.text_input(
+                        "Choose Username",
+                        placeholder="At least 3 characters"
+                    )
+
+                    new_password = st.text_input(
+                        "Create Password",
+                        type="password",
+                        placeholder="At least 4 characters"
+                    )
+
+                    confirm_password = st.text_input(
+                        "Confirm Password",
+                        type="password",
+                        placeholder="Enter password again"
+                    )
+
+                    signup_button = st.form_submit_button(
+                        "Create Account",
+                        use_container_width=True
+                    )
+
+                    if signup_button:
+
+                        if not new_username.strip():
+
+                            st.error(
+                                "Please enter a username."
+                            )
+
+                        elif not new_password:
+
+                            st.error(
+                                "Please enter a password."
+                            )
+
+                        elif new_password != confirm_password:
+
+                            st.error(
+                                "Passwords do not match."
+                            )
+
+                        else:
+
+                            success, message = create_account(
+                                new_username,
+                                new_password
+                            )
+
+                            if success:
+
+                                st.success(
+                                    message
+                                )
+
+                                st.info(
+                                    "Open the Login tab "
+                                    "and sign in."
+                                )
+
+                            else:
+
+                                st.error(
+                                    message
+                                )
+
+    st.stop()
